@@ -1,19 +1,104 @@
-version: '3'
+version: '3.8'
 
 services:
-  customer-service :
-    build : ./customer-service
-    ports :
+  mysql-book:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: bookdb
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_book_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  mysql-cart:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: cartdb
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_cart_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: customerdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      timeout: 20s
+      retries: 10
+
+  customer-service:
+    build: ./customer-service
+    ports:
       - "8001:8000"
-  book-service :
-    build : ./book-service
-    ports :
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=customerdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres123
+      - DB_HOST=postgres
+      - DB_PORT=5432
+
+  book-service:
+    build: ./book-service
+    ports:
       - "8002:8000"
-  cart-service :
-    build : ./cart-service
-    ports :
+    depends_on:
+      mysql-book:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.mysql
+      - DB_NAME=bookdb
+      - DB_USER=root
+      - DB_PASSWORD=root123
+      - DB_HOST=mysql-book
+      - DB_PORT=3306
+
+  cart-service:
+    build: ./cart-service
+    ports:
       - "8003:8000"
-  api-gateway :
-    build : ./api-gateway
-    ports :
+    depends_on:
+      mysql-cart:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.mysql
+      - DB_NAME=cartdb
+      - DB_USER=root
+      - DB_PASSWORD=root123
+      - DB_HOST=mysql-cart
+      - DB_PORT=3306
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
       - "8000:8000"
+    depends_on:
+      - book-service
+      - cart-service
+      - customer-service
+
+volumes:
+  mysql_book_data:
+  mysql_cart_data:
+  postgres_data:

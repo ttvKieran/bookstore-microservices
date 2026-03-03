@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-bookworm
 
 WORKDIR /app
 
@@ -9,11 +9,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Run migrations
-RUN python manage.py migrate
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Expose port
 EXPOSE 8000
 
 # Run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["/entrypoint.sh"]

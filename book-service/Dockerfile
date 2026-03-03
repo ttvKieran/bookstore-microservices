@@ -1,6 +1,16 @@
-FROM python:3.11-slim
+FROM python:3.11-bookworm
 
 WORKDIR /app
+
+# Install MySQL client dependencies
+RUN rm -f /etc/apt/sources.list.d/debian.sources && \
+    echo "deb http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    apt-get update && apt-get install -y \
+    default-libmysqlclient-dev \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY requirements.txt .
@@ -9,12 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Run migrations
-RUN python manage.py makemigrations
-RUN python manage.py migrate
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Expose port
 EXPOSE 8000
 
 # Run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["/entrypoint.sh"]
