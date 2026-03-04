@@ -1,66 +1,277 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Databases (7 instances)
+  
+  postgres-customer:
+    image: postgres:14
+    container_name: postgres-customer
+    environment:
+      POSTGRES_USER: customer_user
+      POSTGRES_PASSWORD: customer_pass
+      POSTGRES_DB: customer_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_customer_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U customer_user -d customer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-staff:
+    image: postgres:14
+    container_name: postgres-staff
+    environment:
+      POSTGRES_USER: staff_user
+      POSTGRES_PASSWORD: staff_pass
+      POSTGRES_DB: staff_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_staff_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staff_user -d staff_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-manager:
+    image: postgres:14
+    container_name: postgres-manager
+    environment:
+      POSTGRES_USER: manager_user
+      POSTGRES_PASSWORD: manager_pass
+      POSTGRES_DB: manager_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_manager_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manager_user -d manager_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-recommender:
+    image: postgres:14
+    container_name: postgres-recommender
+    environment:
+      POSTGRES_USER: recommender_user
+      POSTGRES_PASSWORD: recommender_pass
+      POSTGRES_DB: recommender_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_recommender_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recommender_user -d recommender_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-order:
+    image: postgres:14
+    container_name: postgres-order
+    environment:
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_pass
+      POSTGRES_DB: order_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_order_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_user -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-payment:
+    image: postgres:14
+    container_name: postgres-payment
+    environment:
+      POSTGRES_USER: payment_user
+      POSTGRES_PASSWORD: payment_pass
+      POSTGRES_DB: payment_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_payment_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment_user -d payment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-shipment:
+    image: postgres:14
+    container_name: postgres-shipment
+    environment:
+      POSTGRES_USER: shipment_user
+      POSTGRES_PASSWORD: shipment_pass
+      POSTGRES_DB: shipment_db
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres_shipment_data:/var/lib/postgresql/data
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipment_user -d shipment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL Databases (4 instances)
+
   mysql-book:
     image: mysql:8.0
+    container_name: mysql-book
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: bookdb
+      MYSQL_DATABASE: book_db
+      MYSQL_USER: book_user
+      MYSQL_PASSWORD: book_pass
     ports:
-      - "3308:3306"
+      - "3310:3306"
     volumes:
       - mysql_book_data:/var/lib/mysql
+      - ./mysql-init/book-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bookstore-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "book_user", "-pbook_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mysql-cart:
     image: mysql:8.0
+    container_name: mysql-cart
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: cartdb
+      MYSQL_DATABASE: cart_db
+      MYSQL_USER: cart_user
+      MYSQL_PASSWORD: cart_pass
     ports:
       - "3307:3306"
     volumes:
       - mysql_cart_data:/var/lib/mysql
+      - ./mysql-init/cart-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bookstore-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "cart_user", "-pcart_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  postgres:
-    image: postgres:15
+  mysql-catalog:
+    image: mysql:8.0
+    container_name: mysql-catalog
+    command: --default-authentication-plugin=mysql_native_password
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: customerdb
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: catalog_db
+      MYSQL_USER: catalog_user
+      MYSQL_PASSWORD: catalog_pass
     ports:
-      - "5432:5432"
+      - "3308:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_catalog_data:/var/lib/mysql
+      - ./mysql-init/catalog-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bookstore-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "catalog_user", "-pcatalog_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql-comment:
+    image: mysql:8.0
+    container_name: mysql-comment
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: comment_db
+      MYSQL_USER: comment_user
+      MYSQL_PASSWORD: comment_pass
+    ports:
+      - "3309:3306"
+    volumes:
+      - mysql_comment_data:/var/lib/mysql
+      - ./mysql-init/comment-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "comment_user", "-pcomment_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Python Services (Django DRF)
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - customer-service
+      - book-service
+      - cart-service
+      - staff-service
+      - manager-service
+    environment:
+      - JWT_SECRET_KEY=your_super_secret_jwt_key_change_in_production
+      - CUSTOMER_SERVICE_URL=http://customer-service:8000
+      - BOOK_SERVICE_URL=http://book-service:8000
+      - CART_SERVICE_URL=http://cart-service:8000
+      - STAFF_SERVICE_URL=http://staff-service:8000
+      - MANAGER_SERVICE_URL=http://manager-service:8000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
 
   customer-service:
     build: ./customer-service
+    container_name: customer-service
     ports:
       - "8001:8000"
     depends_on:
-      postgres:
+      postgres-customer:
         condition: service_healthy
     environment:
       - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=customerdb
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres123
-      - DB_HOST=postgres
+      - DB_NAME=customer_db
+      - DB_USER=customer_user
+      - DB_PASSWORD=customer_pass
+      - DB_HOST=postgres-customer
       - DB_PORT=5432
+    networks:
+      - bookstore-network
+    restart: unless-stopped
 
   book-service:
     build: ./book-service
+    container_name: book-service
     ports:
       - "8002:8000"
     depends_on:
@@ -68,14 +279,18 @@ services:
         condition: service_healthy
     environment:
       - DB_ENGINE=django.db.backends.mysql
-      - DB_NAME=bookdb
-      - DB_USER=root
-      - DB_PASSWORD=root123
+      - DB_NAME=book_db
+      - DB_USER=book_user
+      - DB_PASSWORD=book_pass
       - DB_HOST=mysql-book
       - DB_PORT=3306
+    networks:
+      - bookstore-network
+    restart: unless-stopped
 
   cart-service:
     build: ./cart-service
+    container_name: cart-service
     ports:
       - "8003:8000"
     depends_on:
@@ -83,22 +298,209 @@ services:
         condition: service_healthy
     environment:
       - DB_ENGINE=django.db.backends.mysql
-      - DB_NAME=cartdb
-      - DB_USER=root
-      - DB_PASSWORD=root123
+      - DB_NAME=cart_db
+      - DB_USER=cart_user
+      - DB_PASSWORD=cart_pass
       - DB_HOST=mysql-cart
       - DB_PORT=3306
+      - BOOK_SERVICE_URL=http://book-service:8000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
 
-  api-gateway:
-    build: ./api-gateway
+  staff-service:
+    build: ./staff-service
+    container_name: staff-service
     ports:
-      - "8000:8000"
+      - "8004:8000"
     depends_on:
-      - book-service
-      - cart-service
-      - customer-service
+      postgres-staff:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=staff_db
+      - DB_USER=staff_user
+      - DB_PASSWORD=staff_pass
+      - DB_HOST=postgres-staff
+      - DB_PORT=5432
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  manager-service:
+    build: ./manager-service
+    container_name: manager-service
+    ports:
+      - "8005:8000"
+    depends_on:
+      postgres-manager:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=manager_db
+      - DB_USER=manager_user
+      - DB_PASSWORD=manager_pass
+      - DB_HOST=postgres-manager
+      - DB_PORT=5432
+      - BOOK_SERVICE_URL=http://book-service:8000
+      - ORDER_SERVICE_URL=http://order-service:8080
+      - CUSTOMER_SERVICE_URL=http://customer-service:8000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  catalog-service:
+    build: ./catalog-service
+    container_name: catalog-service
+    ports:
+      - "8006:8000"
+    depends_on:
+      mysql-catalog:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.mysql
+      - DB_NAME=catalog_db
+      - DB_USER=catalog_user
+      - DB_PASSWORD=catalog_pass
+      - DB_HOST=mysql-catalog
+      - DB_PORT=3306
+      - BOOK_SERVICE_URL=http://book-service:8000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  recommender-ai-service:
+    build: ./recommender-ai-service
+    container_name: recommender-ai-service
+    ports:
+      - "8007:8000"
+    depends_on:
+      postgres-recommender:
+        condition: service_healthy
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=recommender_db
+      - DB_USER=recommender_user
+      - DB_PASSWORD=recommender_pass
+      - DB_HOST=postgres-recommender
+      - DB_PORT=5432
+      - BOOK_SERVICE_URL=http://book-service:8000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+# Java Services (Spring Boot)
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "9001:8080"
+    depends_on:
+      postgres-order:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres-order
+      - DB_PORT=5432
+      - DB_NAME=order_db
+      - DB_USER=order_user
+      - DB_PASSWORD=order_pass
+      - BOOK_SERVICE_URL=http://book-service:8000
+      - CUSTOMER_SERVICE_URL=http://customer-service:8000
+      - CART_SERVICE_URL=http://cart-service:8000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  pay-service:
+    build: ./pay-service
+    container_name: pay-service
+    ports:
+      - "9002:8080"
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres-payment
+      - DB_PORT=5432
+      - DB_NAME=payment_db
+      - DB_USER=payment_user
+      - DB_PASSWORD=payment_pass
+      - ORDER_SERVICE_URL=http://order-service:8080
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  ship-service:
+    build: ./ship-service
+    container_name: ship-service
+    ports:
+      - "9003:8080"
+    depends_on:
+      postgres-shipment:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres-shipment
+      - DB_PORT=5432
+      - DB_NAME=shipment_db
+      - DB_USER=shipment_user
+      - DB_PASSWORD=shipment_pass
+      - ORDER_SERVICE_URL=http://order-service:8080
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  comment-rate-service:
+    build: ./comment-rate-service
+    container_name: comment-rate-service
+    ports:
+      - "3001:3000"
+    depends_on:
+      mysql-comment:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql-comment
+      - DB_PORT=3306
+      - DB_NAME=comment_db
+      - DB_USER=comment_user
+      - DB_PASSWORD=comment_pass
+      - PORT=3000
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+  frontend-web:
+    build: ./frontend-web
+    container_name: frontend-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+
+# Networks
+
+networks:
+  bookstore-network:
+    driver: bridge
+    name: bookstore-network
+
+# Volumes
 
 volumes:
+  # PostgreSQL volumes
+  postgres_customer_data:
+  postgres_staff_data:
+  postgres_manager_data:
+  postgres_recommender_data:
+  postgres_order_data:
+  postgres_payment_data:
+  postgres_shipment_data:
+  
+  # MySQL volumes
   mysql_book_data:
   mysql_cart_data:
-  postgres_data:
+  mysql_catalog_data:
+  mysql_comment_data:
