@@ -34,5 +34,5 @@ python manage.py migrate
 echo "Seeding test customers..."
 python manage.py seed_customers
 
-echo "Starting server..."
-python manage.py runserver 0.0.0.0:8000
+echo "Starting server with Gunicorn..."
+exec gunicorn --bind 0.0.0.0:8000 --workers 3 customer_service.wsgi:application

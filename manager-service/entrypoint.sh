@@ -14,5 +14,5 @@ python manage.py migrate
 echo "Seeding initial data..."
 python manage.py seed_manager
 
-echo "Starting server..."
-python manage.py runserver 0.0.0.0:8000
+echo "Starting server with Gunicorn..."
+exec gunicorn --bind 0.0.0.0:8000 --workers 3 manager_service.wsgi:application
