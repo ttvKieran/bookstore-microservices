@@ -39,3 +39,19 @@ class StockUpdateSerializer(serializers.Serializer):
         instance.stock_quantity = validated_data['quantity']
         instance.save()
         return instance
+
+class StockReduceSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1)
+    
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Quantity must be positive")
+        return value
+    
+    def update(self, instance, validated_data):
+        reduce_qty = validated_data['quantity']
+        if instance.stock_quantity < reduce_qty:
+            raise serializers.ValidationError(f"Insufficient stock. Available: {instance.stock_quantity}, Requested: {reduce_qty}")
+        instance.stock_quantity -= reduce_qty
+        instance.save()
+        return instance

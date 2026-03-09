@@ -55,6 +55,12 @@
             <optional>true</optional>
         </dependency>
         
+        <!-- Spring Kafka for Saga Pattern -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        
         <!-- Spring Boot Starter Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,8 +1,6 @@
 package com.bookstore.payservice.controller;
 
-import com.bookstore.payservice.dto.CreatePaymentRequest;
-import com.bookstore.payservice.dto.PaymentResponse;
-import com.bookstore.payservice.dto.ProcessPaymentRequest;
+import com.bookstore.payservice.dto.*;
 import com.bookstore.payservice.model.Payment;
 import com.bookstore.payservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -58,8 +56,8 @@ public class PaymentController {
         }
     }
     
-    @GetMapping("/orders/{orderId}/payment")
-    public ResponseEntity<PaymentResponse> getPaymentByOrder(@PathVariable String orderId) {
+    @GetMapping("/payments/order/{order_id}")
+    public ResponseEntity<PaymentResponse> getPaymentByOrder(@PathVariable("order_id") String orderId) {
         try {
             PaymentResponse payment = paymentService.getPaymentByOrderId(orderId);
             return ResponseEntity.ok(payment);
@@ -68,8 +66,11 @@ public class PaymentController {
         }
     }
     
-    @GetMapping("/customers/{customerId}/payments")
-    public ResponseEntity<Map<String, Object>> getCustomerPayments(@PathVariable String customerId) {
+    @GetMapping("/payments/customer/{customer_id}")
+    public ResponseEntity<Map<String, Object>> getCustomerPayments(
+            @PathVariable("customer_id") String customerId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit) {
         List<PaymentResponse> payments = paymentService.getPaymentsByCustomer(customerId);
         Map<String, Object> response = new HashMap<>();
         response.put("customer_id", customerId);
@@ -109,11 +110,13 @@ public class PaymentController {
         }
     }
     
-    @PostMapping("/payments/{paymentId}/refund")
-    public ResponseEntity<PaymentResponse> refundPayment(@PathVariable UUID paymentId) {
+    @PostMapping("/payments/{payment_id}/refund")
+    public ResponseEntity<RefundResponse> refundPayment(
+            @PathVariable("payment_id") UUID paymentId,
+            @RequestBody RefundRequest request) {
         try {
-            PaymentResponse payment = paymentService.refundPayment(paymentId);
-            return ResponseEntity.ok(payment);
+            RefundResponse refund = paymentService.refundPayment(paymentId, request);
+            return ResponseEntity.ok(refund);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());

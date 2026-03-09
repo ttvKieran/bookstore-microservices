@@ -329,3 +329,145 @@ class ViewCart(APIView):
             return Response(serializer.data)
         except Cart.DoesNotExist:
             return Response([], status=status.HTTP_200_OK)
+
+
+# ============================
+# Two-Phase Commit Endpoints
+# ============================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def prepare_cart_clear(request):
+    """
+    2PC PREPARE Phase: Mark cart for clearing
+    Request body: {
+        "transaction_id": "string",
+        "customer_id": "integer"
+    }
+    """
+    from .transaction_manager import CartTransactionManager
+    
+    global request_count
+    request_count += 1
+    
+    print("==== DEBUG CART 2PC PREPARE ====")
+    print("1. CONTENT_TYPE:", request.META.get('CONTENT_TYPE'))
+    print("2. RAW BODY:", request.body)
+    print("3. DRF DATA:", request.data)
+    print("==================================")
+    
+    transaction_id = request.data.get('transaction_id')
+    customer_id = request.data.get('customer_id')
+    
+    if not all([transaction_id, customer_id]):
+        print(f"ERROR: Missing fields - transaction_id={transaction_id}, customer_id={customer_id}")
+        return Response({
+            'ready': False,
+            'transaction_id': None,
+            'message': 'Missing required fields: transaction_id, customer_id'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Prepare transaction
+    success, txn_id, message = CartTransactionManager.prepare_cart_clear(
+        customer_id, transaction_id
+    )
+    
+    if success:
+        return Response({
+            'ready': True,
+            'transaction_id': txn_id,
+            'message': message,
+            'data': {
+                'customer_id': customer_id
+            }
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'ready': False,
+            'transaction_id': None,
+            'message': message
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def commit_cart_transaction(request):
+    """
+    2PC COMMIT Phase: Actually clear the cart
+    Request body: {
+        "transaction_id": "string",
+        "action": "COMMIT"
+    }
+    """
+    from .transaction_manager import CartTransactionManager
+    
+    global request_count
+    request_count += 1
+    
+    transaction_id = request.data.get('transaction_id')
+    action = request.data.get('action')
+    
+    if not transaction_id:
+        return Response({
+            'success': False,
+            'message': 'Missing transaction_id'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if action != 'COMMIT':
+        return Response({
+            'success': False,
+            'message': f'Invalid action: {action}. Expected: COMMIT'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Commit transaction
+    success, message = CartTransactionManager.commit_transaction(transaction_id)
+    
+    if success:
+        return Response({
+            'success': True,
+            'message': message
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'success': False,
+            'message': message
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def abort_cart_transaction(request):
+    """
+    2PC ABORT Phase: Cancel cart clear
+    Request body: {
+        "transaction_id": "string",
+        "action": "ABORT"
+    }
+    """
+    from .transaction_manager import CartTransactionManager
+    
+    global request_count
+    request_count += 1
+    
+    transaction_id = request.data.get('transaction_id')
+    action = request.data.get('action')
+    
+    if not transaction_id:
+        return Response({
+            'success': False,
+            'message': 'Missing transaction_id'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if action != 'ABORT':
+        return Response({
+            'success': False,
+            'message': f'Invalid action: {action}. Expected: ABORT'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Abort transaction
+    success, message = CartTransactionManager.abort_transaction(transaction_id)
+    
+    return Response({
+        'success': True,
+        'message': message
+    }, status=status.HTTP_200_OK)

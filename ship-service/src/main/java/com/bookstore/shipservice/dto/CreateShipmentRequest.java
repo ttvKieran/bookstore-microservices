@@ -1,14 +1,23 @@
 package com.bookstore.shipservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Data
 public class CreateShipmentRequest {
+    @JsonProperty("order_id")
     private String orderId;
-    private String customerId;
-    private String shippingAddress;
+    
+    @JsonProperty("customer_id")
+    private String customerId; // Optional - for internal tracking
+    
     private String carrier;
-    private LocalDateTime estimatedDelivery;
+    
+    @JsonProperty("shipping_address")
+    private ShippingAddress shippingAddress;
+    
+    @JsonProperty("estimated_delivery")
+    private LocalDate estimatedDelivery;
 }

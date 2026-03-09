@@ -7,6 +7,7 @@ import com.bookstore.shipservice.model.Shipment;
 import com.bookstore.shipservice.model.ShipmentTracking;
 import com.bookstore.shipservice.repository.ShipmentRepository;
 import com.bookstore.shipservice.repository.ShipmentTrackingRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class ShipmentService {
     private final ShipmentRepository shipmentRepository;
     private final ShipmentTrackingRepository trackingRepository;
     private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     @Value("${order.service.url}")
     private String orderServiceUrl;
@@ -38,10 +40,28 @@ public class ShipmentService {
         
         Shipment shipment = new Shipment();
         shipment.setOrderId(request.getOrderId());
-        shipment.setCustomerId(request.getCustomerId());
-        shipment.setShippingAddress(request.getShippingAddress());
+        shipment.setCustomerId(request.getCustomerId()); // Optional field
+        
+        // Convert ShippingAddress object to String
+        if (request.getShippingAddress() != null) {
+            try {
+                String addressStr = String.format("%s, %s, %s",
+                    request.getShippingAddress().getAddressLine(),
+                    request.getShippingAddress().getCity(),
+                    request.getShippingAddress().getPostalCode());
+                shipment.setShippingAddress(addressStr);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to process shipping address: " + e.getMessage());
+            }
+        }
+        
         shipment.setCarrier(request.getCarrier());
-        shipment.setEstimatedDelivery(request.getEstimatedDelivery());
+        
+        // Convert LocalDate to LocalDateTime for estimatedDelivery
+        if (request.getEstimatedDelivery() != null) {
+            shipment.setEstimatedDelivery(request.getEstimatedDelivery().atStartOfDay());
+        }
+        
         shipment.setStatus(Shipment.ShipmentStatus.PREPARING);
         shipment.setTrackingNumber(generateTrackingNumber());
         
@@ -65,14 +85,19 @@ public class ShipmentService {
         if (request.getStatus() == Shipment.ShipmentStatus.SHIPPED) {
             shipment.setShippedAt(LocalDateTime.now());
         } else if (request.getStatus() == Shipment.ShipmentStatus.DELIVERED) {
-            shipment.setDeliveredAt(LocalDateTime.now());
+            if (request.getActualDelivery() != null) {
+                shipment.setDeliveredAt(request.getActualDelivery().atStartOfDay());
+            } else {
+                shipment.setDeliveredAt(LocalDateTime.now());
+            }
         }
         
         Shipment updatedShipment = shipmentRepository.save(shipment);
         
         // Add tracking entry
         addTrackingEntry(updatedShipment, request.getStatus(), 
-                request.getLocation(), request.getNotes());
+                request.getLocation() != null ? request.getLocation() : "Unknown", 
+                null);
         
         // Notify order-service if delivered
         if (request.getStatus() == Shipment.ShipmentStatus.DELIVERED) {
@@ -155,33 +180,34 @@ public class ShipmentService {
         ShipmentResponse response = new ShipmentResponse();
         response.setId(shipment.getId());
         response.setOrderId(shipment.getOrderId());
-        response.setCustomerId(shipment.getCustomerId());
         response.setShippingAddress(shipment.getShippingAddress());
         response.setStatus(shipment.getStatus());
         response.setTrackingNumber(shipment.getTrackingNumber());
         response.setCarrier(shipment.getCarrier());
         response.setCreatedAt(shipment.getCreatedAt());
-        response.setUpdatedAt(shipment.getUpdatedAt());
-        response.setShippedAt(shipment.getShippedAt());
-        response.setDeliveredAt(shipment.getDeliveredAt());
-        response.setEstimatedDelivery(shipment.getEstimatedDelivery());
+        
+        // Convert LocalDateTime to LocalDate for dates
+        if (shipment.getEstimatedDelivery() != null) {
+            response.setEstimatedDelivery(shipment.getEstimatedDelivery().toLocalDate());
+        }
+        if (shipment.getDeliveredAt() != null) {
+            response.setActualDelivery(shipment.getDeliveredAt().toLocalDate());
+        }
         
         // Get tracking history
         List<ShipmentTracking> tracking = trackingRepository.findByShipmentIdOrderByTimestampDesc(shipment.getId());
         List<ShipmentResponse.TrackingHistoryDto> history = tracking.stream()
                 .map(this::convertTrackingToDto)
                 .collect(Collectors.toList());
-        response.setTrackingHistory(history);
+        response.setHistory(history);
         
         return response;
     }
     
     private ShipmentResponse.TrackingHistoryDto convertTrackingToDto(ShipmentTracking tracking) {
         ShipmentResponse.TrackingHistoryDto dto = new ShipmentResponse.TrackingHistoryDto();
-        dto.setId(tracking.getId());
         dto.setStatus(tracking.getStatus());
         dto.setLocation(tracking.getLocation());
-        dto.setNotes(tracking.getNotes());
         dto.setTimestamp(tracking.getTimestamp());
         return dto;
     }

@@ -277,6 +277,8 @@ services:
     depends_on:
       mysql-book:
         condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - DB_ENGINE=django.db.backends.mysql
       - DB_NAME=book_db
@@ -284,6 +286,7 @@ services:
       - DB_PASSWORD=book_pass
       - DB_HOST=mysql-book
       - DB_PORT=3306
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     networks:
       - bookstore-network
     restart: unless-stopped
@@ -399,6 +402,8 @@ services:
     depends_on:
       postgres-order:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       - DB_HOST=postgres-order
       - DB_PORT=5432
@@ -408,6 +413,7 @@ services:
       - BOOK_SERVICE_URL=http://book-service:8000
       - CUSTOMER_SERVICE_URL=http://customer-service:8000
       - CART_SERVICE_URL=http://cart-service:8000
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     networks:
       - bookstore-network
     restart: unless-stopped
@@ -420,6 +426,8 @@ services:
     depends_on:
       postgres-payment:
         condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - DB_HOST=postgres-payment
       - DB_PORT=5432
@@ -427,6 +435,7 @@ services:
       - DB_USER=payment_user
       - DB_PASSWORD=payment_pass
       - ORDER_SERVICE_URL=http://order-service:8080
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     networks:
       - bookstore-network
     restart: unless-stopped
@@ -439,6 +448,8 @@ services:
     depends_on:
       postgres-shipment:
         condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - DB_HOST=postgres-shipment
       - DB_PORT=5432
@@ -446,6 +457,7 @@ services:
       - DB_USER=shipment_user
       - DB_PASSWORD=shipment_pass
       - ORDER_SERVICE_URL=http://order-service:8080
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     networks:
       - bookstore-network
     restart: unless-stopped
@@ -454,7 +466,7 @@ services:
     build: ./comment-rate-service
     container_name: comment-rate-service
     ports:
-      - "3001:3000"
+      - "3002:3000"
     depends_on:
       mysql-comment:
         condition: service_healthy
@@ -531,6 +543,68 @@ services:
     # Don't start automatically - run tests manually
     profiles:
       - testing
+
+  # Kafka & Zookeeper for Saga Pattern
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - bookstore-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+  
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8099:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: bookstore-kafka
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      - kafka
+    networks:
+      - bookstore-network
+
+  # Redis Cache for 2PC Transaction State
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 # Networks
 

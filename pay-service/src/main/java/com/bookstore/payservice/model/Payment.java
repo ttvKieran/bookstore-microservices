@@ -23,10 +23,10 @@ public class Payment {
     private UUID id;
     
     @Column(nullable = false)
-    private String orderId; // UUID from order-service
+    private String orderId; // UUID from order-service (stored as String)
     
-    @Column(nullable = false)
-    private String customerId; // UUID from customer-service
+    @Column(nullable = true)
+    private String customerId; // UUID from customer-service (optional for guest checkout)
     
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;

@@ -193,12 +193,12 @@ const Catalog = () => {
       )}
 
       {/* Books Grid */}
-      <Grid container spacing={3}>
+      <Grid container spacing={3} justifyContent="left">
         {loadingBooks
           ? // Skeleton loading
             Array.from(new Array(8)).map((_, index) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                <Card>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={index} sx={{ display: 'flex' }}>
+                <Card sx={{ width: '100%', maxWidth: 320 }}>
                   <Skeleton variant="rectangular" height={280} />
                   <CardContent>
                     <Skeleton variant="text" height={32} />
@@ -229,9 +229,11 @@ const Catalog = () => {
             </Grid>
           : // Actual book cards
             books.map((book) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={book.book_id}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={book.book_id} sx={{ display: 'flex' }}>
                 <Card
                   sx={{
+                    width: '100%',
+                    maxWidth: 320,
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -252,7 +254,13 @@ const Catalog = () => {
                       )}`
                     }
                     alt={book.title}
-                    sx={{ objectFit: 'cover', bgcolor: 'grey.200', cursor: 'pointer' }}
+                    sx={{ 
+                      objectFit: 'cover', 
+                      bgcolor: 'grey.200', 
+                      cursor: 'pointer',
+                      width: '100%',
+                      maxWidth: '100%',
+                    }}
                     onClick={() => handleViewDetails(book.book_id)}
                   />
                   <CardContent sx={{ flexGrow: 1 }}>

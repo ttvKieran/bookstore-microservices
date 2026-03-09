@@ -124,7 +124,7 @@
       },
       "targets": [
         {
-          "query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter",
+          "query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time(5s) fill(null)",
           "rawQuery": true,
           "refId": "A"
         }
@@ -192,7 +192,7 @@
       },
       "targets": [
         {
-          "query": "SELECT derivative(mean(\"value\"), 1s) FROM \"http_reqs\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+          "query": "SELECT sum(\"value\") FROM \"http_reqs\" WHERE $timeFilter GROUP BY time(1s) fill(0)",
           "rawQuery": true,
           "refId": "A"
         }
@@ -264,7 +264,7 @@
       },
       "targets": [
         {
-          "query": "SELECT mean(\"value\") FROM \"http_req_failed\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"value\") FROM \"http_req_failed\" WHERE $timeFilter GROUP BY time(5s) fill(0)",
           "rawQuery": true,
           "refId": "A"
         }

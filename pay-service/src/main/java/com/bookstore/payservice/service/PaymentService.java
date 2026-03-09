@@ -1,10 +1,9 @@
 package com.bookstore.payservice.service;
 
-import com.bookstore.payservice.dto.CreatePaymentRequest;
-import com.bookstore.payservice.dto.PaymentResponse;
-import com.bookstore.payservice.dto.ProcessPaymentRequest;
+import com.bookstore.payservice.dto.*;
 import com.bookstore.payservice.model.Payment;
 import com.bookstore.payservice.repository.PaymentRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -21,6 +20,7 @@ public class PaymentService {
     
     private final PaymentRepository paymentRepository;
     private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     @Value("${order.service.url}")
     private String orderServiceUrl;
@@ -38,7 +38,16 @@ public class PaymentService {
         payment.setCustomerId(request.getCustomerId());
         payment.setAmount(request.getAmount());
         payment.setPaymentMethod(request.getPaymentMethod());
-        payment.setPaymentDetails(request.getPaymentDetails());
+        
+        // Convert payment details to JSON string
+        if (request.getPaymentDetails() != null) {
+            try {
+                payment.setPaymentDetails(objectMapper.writeValueAsString(request.getPaymentDetails()));
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to serialize payment details: " + e.getMessage());
+            }
+        }
+        
         payment.setStatus(Payment.PaymentStatus.PENDING);
         
         Payment savedPayment = paymentRepository.save(payment);
@@ -95,7 +104,7 @@ public class PaymentService {
     }
     
     @Transactional
-    public PaymentResponse refundPayment(UUID paymentId) {
+    public RefundResponse refundPayment(UUID paymentId, RefundRequest request) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
         
@@ -103,10 +112,24 @@ public class PaymentService {
             throw new RuntimeException("Can only refund completed payments");
         }
         
+        // Validate refund amount
+        if (request.getAmount().compareTo(payment.getAmount()) > 0) {
+            throw new RuntimeException("Refund amount cannot exceed payment amount");
+        }
+        
         payment.setStatus(Payment.PaymentStatus.REFUNDED);
+        payment.setProcessedAt(LocalDateTime.now());
         Payment updatedPayment = paymentRepository.save(payment);
         
-        return convertToResponse(updatedPayment);
+        // Create refund response
+        RefundResponse response = new RefundResponse();
+        response.setRefundId(UUID.randomUUID()); // Generate a refund ID
+        response.setPaymentId(updatedPayment.getId());
+        response.setAmount(request.getAmount());
+        response.setRefundStatus("success");
+        response.setProcessedAt(updatedPayment.getProcessedAt());
+        
+        return response;
     }
     
     public Map<String, Object> getPaymentStatistics() {
@@ -141,9 +164,6 @@ public class PaymentService {
         response.setPaymentMethod(payment.getPaymentMethod());
         response.setStatus(payment.getStatus());
         response.setTransactionId(payment.getTransactionId());
-        response.setPaymentDetails(payment.getPaymentDetails());
-        response.setCreatedAt(payment.getCreatedAt());
-        response.setUpdatedAt(payment.getUpdatedAt());
         response.setProcessedAt(payment.getProcessedAt());
         return response;
     }

@@ -118,7 +118,9 @@ sequenceDiagram
 
 ---
 
-## 3. Order Processing Flow
+## 3. Order Processing Flow - Two-Phase Commit (2PC)
+
+### 3.1. Happy Path - Success Scenario
 
 ```mermaid
 sequenceDiagram
@@ -130,35 +132,234 @@ sequenceDiagram
     participant Pay as Pay Service
     participant Ship as Ship Service
     
-    Client->>+Gateway: POST /api/orders<br/>Authorization: Bearer <token>
-    Gateway->>+Order: POST /orders<br/>{customer_id, address_id}
+    Client->>+Gateway: POST /api/orders<br/>{customer_id, address, payment_method}
+    Gateway->>+Order: POST /orders/2pc<br/>{customer_id, address, payment_method}
     
+    Note over Order: PHASE 1: PREPARE
     Order->>+Cart: GET /carts/{customer_id}
     Cart-->>-Order: Cart items
     
-    Order->>+Book: Verify stock for each book
-    Book-->>-Order: Stock confirmation
+    Order->>+Book: POST /transactions/prepare-stock<br/>{transaction_id, items[]}
+    Book->>Book: Lock stock (Redis)
+    Book-->>-Order: ✅ VOTE_COMMIT
+    
+    Order->>+Pay: POST /transactions/prepare-payment<br/>{transaction_id, amount, method}
+    Pay->>Pay: Validate payment info
+    Pay-->>-Order: ✅ VOTE_COMMIT
+    
+    Order->>+Ship: POST /transactions/prepare-shipment<br/>{transaction_id, address}
+    Ship->>Ship: Validate address
+    Ship-->>-Order: ✅ VOTE_COMMIT
+    
+    Note over Order: All participants voted COMMIT
+    Note over Order: PHASE 2: COMMIT
     
     Order->>Order: Create order record
-    Order->>Book: Update stock quantities
     
-    Order->>+Pay: POST /payments<br/>{order_id, amount}
-    Pay->>Pay: Process payment
-    Pay-->>-Order: Payment success
+    Order->>+Book: POST /transactions/commit-stock<br/>{transaction_id}
+    Book->>Book: Reduce actual stock<br/>Release lock
+    Book-->>-Order: ✅ COMMITTED
     
-    Order->>+Ship: POST /shipments<br/>{order_id, address}
-    Ship->>Ship: Create shipment
-    Ship-->>-Order: Shipment created
+    Order->>+Pay: POST /transactions/commit-payment<br/>{transaction_id}
+    Pay->>Pay: Execute payment
+    Pay-->>-Order: ✅ COMMITTED
+    
+    Order->>+Ship: POST /transactions/commit-shipment<br/>{transaction_id}
+    Ship->>Ship: Create shipment record
+    Ship-->>-Order: ✅ COMMITTED
     
     Order->>Cart: DELETE /carts/{customer_id}
     
-    Order-->>-Gateway: Order created response
-    Gateway-->>-Client: {order_id, status, tracking}
+    Order-->>-Gateway: {order_id, status: "CONFIRMED"}
+    Gateway-->>-Client: ✅ Order created successfully
+```
+
+### 3.2. Rollback Scenario - Prepare Phase Failure
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Order as Order Service
+    participant Book as Book Service
+    participant Pay as Pay Service
+    participant Ship as Ship Service
+    
+    Client->>+Order: POST /orders/2pc<br/>{customer_id, ...}
+    
+    Note over Order: PHASE 1: PREPARE
+    
+    Order->>+Book: POST /transactions/prepare-stock
+    Book-->>-Order: ✅ VOTE_COMMIT
+    
+    Order->>+Pay: POST /transactions/prepare-payment
+    Pay->>Pay: Insufficient balance
+    Pay-->>-Order: ❌ VOTE_ABORT
+    
+    Note over Order: Payment voted ABORT<br/>Trigger rollback
+    Note over Order: PHASE 2: ABORT
+    
+    Order->>+Book: POST /transactions/rollback-stock<br/>{transaction_id}
+    Book->>Book: Release lock<br/>Restore original stock
+    Book-->>-Order: ✅ ABORTED
+    
+    Order->>+Pay: POST /transactions/rollback-payment<br/>{transaction_id}
+    Pay->>Pay: Clear prepared state
+    Pay-->>-Order: ✅ ABORTED
+    
+    Order->>Order: Mark order as CANCELLED
+    
+    Order-->>-Client: ❌ Order failed:<br/>Insufficient payment balance
 ```
 
 ---
 
-## 4. Service Dependencies Graph
+## 4. Order Processing Flow - Saga Pattern (Orchestration)
+
+### 4.1. Happy Path - All Steps Succeed
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Order as Order Service<br/>(Orchestrator)
+    participant Kafka as Kafka Topics
+    participant Book as Book Service
+    participant Pay as Pay Service
+    participant Ship as Ship Service
+    
+    Client->>+Order: POST /orders/saga<br/>{customer_id, address, payment_method}
+    
+    Note over Order: SAGA START
+    Order->>Order: Create order (PENDING)
+    
+    Note over Order,Book: STEP 1: Reserve Book
+    Order->>Kafka: PUBLISH saga-book-cmd<br/>{saga_id, step: BOOK_RESERVE, items[]}
+    Kafka->>Book: CONSUME saga-book-cmd
+    Book->>Book: Reserve stock<br/>(Reduce quantity)
+    Book->>Kafka: PUBLISH saga-book-reply<br/>{saga_id, status: SUCCESS}
+    Kafka->>Order: CONSUME saga-book-reply
+    Order->>Order: Update saga state<br/>(BOOK_RESERVED)
+    
+    Note over Order,Pay: STEP 2: Process Payment
+    Order->>Kafka: PUBLISH saga-payment-cmd<br/>{saga_id, step: PAYMENT_PROCESS, amount}
+    Kafka->>Pay: CONSUME saga-payment-cmd
+    Pay->>Pay: Create payment record<br/>Process payment
+    Pay->>Kafka: PUBLISH saga-payment-reply<br/>{saga_id, status: SUCCESS, payment_id}
+    Kafka->>Order: CONSUME saga-payment-reply
+    Order->>Order: Update saga state<br/>(PAYMENT_PROCESSED)<br/>Store payment_id
+    
+    Note over Order,Ship: STEP 3: Schedule Shipment
+    Order->>Kafka: PUBLISH saga-shipment-cmd<br/>{saga_id, step: SHIPMENT_SCHEDULE, address}
+    Kafka->>Ship: CONSUME saga-shipment-cmd
+    Ship->>Ship: Create shipment record
+    Ship->>Kafka: PUBLISH saga-shipment-reply<br/>{saga_id, status: SUCCESS, shipment_id}
+    Kafka->>Order: CONSUME saga-shipment-reply
+    Order->>Order: Update saga state<br/>(COMPLETED)<br/>Order status: CONFIRMED
+    
+    Note over Order: SAGA COMPLETE
+    Order-->>-Client: ✅ {order_id, status: "CONFIRMED"}
+```
+
+### 4.2. Compensation Flow - Shipment Service Down
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Order as Order Service<br/>(Orchestrator)
+    participant Kafka as Kafka Topics
+    participant Book as Book Service
+    participant Pay as Pay Service
+    participant Ship as Ship Service
+    
+    Client->>+Order: POST /orders/saga
+    
+    Note over Order: SAGA START
+    Order->>Order: Create order (PENDING)
+    
+    Note over Order,Book: STEP 1: Reserve Book ✅
+    Order->>Kafka: PUBLISH saga-book-cmd<br/>{step: BOOK_RESERVE}
+    Kafka->>Book: CONSUME
+    Book->>Book: Reduce stock
+    Book->>Kafka: PUBLISH saga-book-reply<br/>{status: SUCCESS}
+    Kafka->>Order: CONSUME
+    
+    Note over Order,Pay: STEP 2: Process Payment ✅
+    Order->>Kafka: PUBLISH saga-payment-cmd<br/>{step: PAYMENT_PROCESS}
+    Kafka->>Pay: CONSUME
+    Pay->>Pay: Create payment
+    Pay->>Kafka: PUBLISH saga-payment-reply<br/>{status: SUCCESS, payment_id}
+    Kafka->>Order: CONSUME
+    
+    Note over Order,Ship: STEP 3: Schedule Shipment ❌
+    Order->>Kafka: PUBLISH saga-shipment-cmd<br/>{step: SHIPMENT_SCHEDULE}
+    Note over Ship: Service is DOWN<br/>No consumer
+    
+    Note over Order: ⏱️ TIMEOUT (30s)<br/>No reply received
+    Order->>Order: Saga timeout detected<br/>Trigger COMPENSATION
+    
+    Note over Order,Ship: COMPENSATE 3: Cancel Shipment (SKIP)
+    Note over Ship: Service down,<br/>nothing to compensate
+    
+    Note over Order,Pay: COMPENSATE 2: Refund Payment
+    Order->>Kafka: PUBLISH saga-payment-cmd<br/>{step: PAYMENT_REFUND, payment_id}
+    Kafka->>Pay: CONSUME
+    Pay->>Pay: Refund payment<br/>Update status: REFUNDED
+    Pay->>Kafka: PUBLISH saga-payment-reply<br/>{status: SUCCESS}
+    Kafka->>Order: CONSUME
+    
+    Note over Order,Book: COMPENSATE 1: Release Book Stock
+    Order->>Kafka: PUBLISH saga-book-cmd<br/>{step: BOOK_RELEASE, items[]}
+    Kafka->>Book: CONSUME
+    Book->>Book: Restore stock<br/>(Add back quantity)
+    Book->>Kafka: PUBLISH saga-book-reply<br/>{status: SUCCESS}
+    Kafka->>Order: CONSUME
+    
+    Note over Order: SAGA COMPENSATED
+    Order->>Order: Update order status<br/>CANCELLED
+    
+    Order-->>-Client: ❌ Order failed:<br/>Shipment service timeout
+```
+
+### 4.3. Compensation Flow - Payment Failure
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Service<br/>(Orchestrator)
+    participant Kafka as Kafka Topics
+    participant Book as Book Service
+    participant Pay as Pay Service
+    
+    Note over Order: SAGA IN PROGRESS
+    
+    Note over Order,Book: STEP 1: Reserve Book ✅
+    Order->>Kafka: PUBLISH saga-book-cmd<br/>{step: BOOK_RESERVE}
+    Kafka->>Book: CONSUME
+    Book->>Book: Reduce stock
+    Book->>Kafka: PUBLISH saga-book-reply<br/>{status: SUCCESS}
+    Kafka->>Order: CONSUME
+    
+    Note over Order,Pay: STEP 2: Process Payment ❌
+    Order->>Kafka: PUBLISH saga-payment-cmd<br/>{step: PAYMENT_PROCESS}
+    Kafka->>Pay: CONSUME
+    Pay->>Pay: Payment failed:<br/>Insufficient balance
+    Pay->>Kafka: PUBLISH saga-payment-reply<br/>{status: FAILED, error_message}
+    Kafka->>Order: CONSUME
+    
+    Note over Order: Payment FAILED<br/>Trigger COMPENSATION
+    
+    Note over Order,Book: COMPENSATE 1: Release Book Stock
+    Order->>Kafka: PUBLISH saga-book-cmd<br/>{step: BOOK_RELEASE, items[]}
+    Kafka->>Book: CONSUME
+    Book->>Book: Restore stock<br/>(Add back quantity)
+    Book->>Kafka: PUBLISH saga-book-reply<br/>{status: SUCCESS}
+    Kafka->>Order: CONSUME
+    
+    Note over Order: SAGA COMPENSATED
+    Order->>Order: Order status: CANCELLED
+```
+
+---
+
+## 5. Service Dependencies Graph
 
 ```mermaid
 graph LR
@@ -214,7 +415,7 @@ graph LR
 
 ---
 
-## 5. Database Schema Diagram
+## 6. Database Schema Diagram
 
 ```mermaid
 erDiagram
@@ -292,7 +493,7 @@ erDiagram
 
 ---
 
-## 6. Deployment Architecture (Docker Compose)
+## 7. Deployment Architecture (Docker Compose)
 
 ```mermaid
 graph TB
@@ -362,7 +563,7 @@ graph TB
 
 ---
 
-## 7. Health Check & Monitoring Flow
+## 8. Health Check & Monitoring Flow
 
 ```mermaid
 graph TB
@@ -429,7 +630,7 @@ graph TB
 
 ---
 
-## 8. User Journey - Customer Purchasing Book
+## 9. User Journey - Customer Purchasing Book
 
 ```mermaid
 journey
@@ -460,7 +661,7 @@ journey
 
 ---
 
-## 9. Component Communication Pattern
+## 10. Component Communication Pattern
 
 ```mermaid
 graph TB
@@ -490,7 +691,7 @@ graph TB
 
 ---
 
-## 10. Scalability Architecture
+## 11. Scalability Architecture
 
 ```mermaid
 graph TB
@@ -549,7 +750,7 @@ graph TB
 
 ---
 
-## 11. Technology Stack Visualization
+## 12. Technology Stack Visualization
 
 ```mermaid
 graph TB
@@ -608,7 +809,7 @@ graph TB
 
 ---
 
-## 12. Error Handling & Circuit Breaker Pattern
+## 13. Error Handling & Circuit Breaker Pattern
 
 ```mermaid
 sequenceDiagram

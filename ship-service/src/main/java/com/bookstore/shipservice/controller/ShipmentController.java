@@ -48,8 +48,8 @@ public class ShipmentController {
         }
     }
     
-    @GetMapping("/shipments/{shipmentId}")
-    public ResponseEntity<ShipmentResponse> getShipment(@PathVariable UUID shipmentId) {
+    @GetMapping("/shipments/{shipment_id}")
+    public ResponseEntity<ShipmentResponse> getShipment(@PathVariable("shipment_id") UUID shipmentId) {
         try {
             ShipmentResponse shipment = shipmentService.getShipmentById(shipmentId);
             return ResponseEntity.ok(shipment);
@@ -58,11 +58,14 @@ public class ShipmentController {
         }
     }
     
-    @GetMapping("/orders/{orderId}/shipment")
-    public ResponseEntity<ShipmentResponse> getShipmentByOrder(@PathVariable String orderId) {
+    @GetMapping("/shipments/order/{order_id}")
+    public ResponseEntity<Map<String, Object>> getShipmentByOrder(@PathVariable("order_id") String orderId) {
         try {
             ShipmentResponse shipment = shipmentService.getShipmentByOrderId(orderId);
-            return ResponseEntity.ok(shipment);
+            Map<String, Object> response = new HashMap<>();
+            response.put("order_id", orderId);
+            response.put("shipment", shipment);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
@@ -105,9 +108,9 @@ public class ShipmentController {
         return ResponseEntity.ok(response);
     }
     
-    @PutMapping("/shipments/{shipmentId}/status")
+    @PutMapping("/shipments/{shipment_id}/status")
     public ResponseEntity<ShipmentResponse> updateShipmentStatus(
-            @PathVariable UUID shipmentId,
+            @PathVariable("shipment_id") UUID shipmentId,
             @RequestBody UpdateShipmentRequest request) {
         try {
             ShipmentResponse shipment = shipmentService.updateShipmentStatus(shipmentId, request);

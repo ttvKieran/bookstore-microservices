@@ -98,12 +98,12 @@ const Home = () => {
         Featured Books
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} justifyContent="space-between">
         {loading
           ? // Skeleton loading
             Array.from(new Array(12)).map((_, index) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                <Card>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={index} sx={{ display: 'flex' }}>
+                <Card sx={{ width: '100%', maxWidth: 320 }}>
                   <Skeleton variant="rectangular" height={280} />
                   <CardContent>
                     <Skeleton variant="text" height={32} />
@@ -115,9 +115,11 @@ const Home = () => {
             ))
           : // Actual book cards
             books.map((book) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={book.id}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={book.id} sx={{ display: 'flex' }}>
                 <Card
                   sx={{
+                    width: '100%',
+                    maxWidth: 320,
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -138,7 +140,13 @@ const Home = () => {
                       )}`
                     }
                     alt={book.title}
-                    sx={{ objectFit: 'cover', bgcolor: 'grey.200', cursor: 'pointer' }}
+                    sx={{ 
+                      objectFit: 'cover', 
+                      bgcolor: 'grey.200', 
+                      cursor: 'pointer',
+                      width: '100%',
+                      maxWidth: '100%',
+                    }}
                     onClick={() => handleViewDetails(book.id)}
                   />
                   <CardContent sx={{ flexGrow: 1 }}>
@@ -173,7 +181,11 @@ const Home = () => {
                         ${book.price?.toFixed(2)}
                       </Typography>
                       {book.stock_quantity > 0 ? (
-                        <Chip label="In Stock" color="success" size="small" />
+                        <Chip 
+                          label={`Stock: ${book.stock_quantity}`} 
+                          color="success" 
+                          size="small" 
+                        />
                       ) : (
                         <Chip label="Out of Stock" color="error" size="small" />
                       )}

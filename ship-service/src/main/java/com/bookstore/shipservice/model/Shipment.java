@@ -25,8 +25,8 @@ public class Shipment {
     @Column(nullable = false)
     private String orderId; // UUID from order-service
     
-    @Column(nullable = false)
-    private String customerId; // UUID from customer-service
+    @Column(nullable = true)
+    private String customerId; // UUID from customer-service (optional) (optional)
     
     @Column(nullable = false, length = 500)
     private String shippingAddress;

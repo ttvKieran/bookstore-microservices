@@ -4,7 +4,7 @@ Hướng dẫn chi tiết cách build và chạy toàn bộ hệ thống BookSto
 
 ---
 
-## 📋 Prerequisites (Yêu Cầu Hệ Thống)
+## Prerequisites (Yêu Cầu Hệ Thống)
 
 ### Phần Mềm Bắt Buộc
 - **Docker Desktop**: Version 20.10 trở lên
@@ -36,7 +36,7 @@ docker ps
 
 ---
 
-## 🚀 Quick Start (Khởi Động Nhanh)
+## Quick Start (Khởi Động Nhanh)
 
 ### Bước 1: Clone Repository
 ```powershell
@@ -100,7 +100,7 @@ docker compose logs -f api-gateway
 
 ---
 
-## 📝 Docker Compose Commands
+## Docker Compose Commands
 
 ### Build Commands
 ```powershell
@@ -188,7 +188,7 @@ docker compose exec book-service python manage.py test
 
 ---
 
-## 🔍 Health Checks
+## Health Checks
 
 ### Check All Services Health
 ```powershell
@@ -229,7 +229,7 @@ curl http://localhost:8002/health
 
 ---
 
-## 🗄️ Database Management
+## Database Management
 
 ### PostgreSQL Databases
 
@@ -351,7 +351,7 @@ docker compose restart ship-service
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Test API Gateway
 ```powershell
@@ -393,7 +393,7 @@ docker compose exec book-service python manage.py createsuperuser
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Issue: Port Already in Use
 ```powershell
@@ -453,7 +453,7 @@ chmod +x book-service/entrypoint.sh
 
 ---
 
-## 📊 Monitoring
+## Monitoring
 
 ### View Resource Usage
 ```powershell
@@ -484,7 +484,7 @@ docker volume inspect assignment5_postgres-customer-data
 
 ---
 
-## 🔧 Development Workflow
+## Development Workflow
 
 ### Making Code Changes
 
@@ -538,7 +538,7 @@ services:
 
 ---
 
-## 🔒 Security Best Practices
+## Security Best Practices
 
 ### Environment Variables
 ```powershell
@@ -561,7 +561,7 @@ environment:
 
 ---
 
-## 📦 Production Deployment
+## Production Deployment
 
 ### Build for Production
 ```powershell
@@ -592,7 +592,7 @@ cat backup_book.sql | docker compose exec -T mysql-book mysql -u book_user -pboo
 
 ---
 
-## 🎯 Performance Optimization
+## Performance Optimization
 
 ### Scale Services
 ```powershell
@@ -620,7 +620,7 @@ services:
 
 ---
 
-## 📚 Common Commands Cheat Sheet
+## Common Commands Cheat Sheet
 
 ```powershell
 # Start everything
@@ -653,7 +653,7 @@ curl http://localhost:8000/health
 
 ---
 
-## ❓ Getting Help
+## Getting Help
 
 ### Check Logs
 ```powershell
@@ -696,14 +696,14 @@ docker compose exec comment-rate-service node --version
 
 ---
 
-## 🎓 Next Steps
+## Next Steps
 
-1. ✅ **Verify Installation**: Run health checks on all services
-2. ✅ **Explore APIs**: Use Postman/curl to test endpoints
-3. ✅ **Load Sample Data**: Create test users and books
-4. ✅ **Test Workflows**: Try complete purchase flow
-5. ✅ **Monitor Services**: Use `docker stats` and logs
-6. ✅ **Read Documentation**: Check [api-design.md](api-design.md) for API specs
+1. **Verify Installation**: Run health checks on all services
+2. **Explore APIs**: Use Postman/curl to test endpoints
+3. **Load Sample Data**: Create test users and books
+4. **Test Workflows**: Try complete purchase flow
+5. **Monitor Services**: Use `docker stats` and logs
+6. **Read Documentation**: Check [api-design.md](api-design.md) for API specs
 
 ---
 
@@ -711,7 +711,7 @@ docker compose exec comment-rate-service node --version
 **Last Updated**: March 4, 2026  
 **Status**: Run Instructions Complete
 
-## 📞 Support
+## Support
 
 - Check [architecture-overview.md](architecture-overview.md) for system design
 - Check [service-scopes.md](service-scopes.md) for service responsibilities
