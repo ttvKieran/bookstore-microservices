@@ -118,6 +118,34 @@ sequenceDiagram
 
 ---
 
+## 2.1. Add Book Flow (Via API Gateway)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway as API Gateway
+    participant BookService as Book Service
+    participant BookDB as book_db (MySQL)
+
+    Client->>+Gateway: POST /api/books/create<br/>Authorization: Bearer <staff_or_manager_token><br/>{isbn, title, author, price, stock_quantity}
+    Gateway->>Gateway: Validate JWT token
+    Gateway->>+BookService: POST /books/create/<br/>{book payload}
+
+    BookService->>BookService: Validate input<br/>(required fields, ISBN, price, stock)
+
+    alt Valid request
+        BookService->>+BookDB: INSERT INTO books (...)
+        BookDB-->>-BookService: New book_id
+        BookService-->>-Gateway: 201 Created<br/>{id, isbn, title, ...}
+        Gateway-->>-Client: 201 Created<br/>{id, isbn, title, ...}
+    else Invalid payload / business rule failed
+        BookService-->>-Gateway: 400 Bad Request<br/>{error, details}
+        Gateway-->>-Client: 400 Bad Request<br/>{error, details}
+    end
+```
+
+---
+
 ## 3. Order Processing Flow
 
 ```mermaid

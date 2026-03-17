@@ -23,7 +23,17 @@ urlpatterns = [
     # Legacy template views (for backward compatibility)
     path('books/', views.book_list, name='book_list'), 
     path('cart/<int:customer_id>/', views.view_cart, name='view_cart'),
-    
-    # Catch-all proxy for backend services (must be last)
-    re_path(r'^api/(?P<path>.*)$', views.api_proxy, name='api_proxy'),
+
+    # Explicit service proxy routes
+    re_path(r'^api/(?P<path>customers(?:/.*)?)$', views.api_proxy, name='customers_proxy'),
+    re_path(r'^api/(?P<path>books(?:/.*)?)$', views.api_proxy, name='books_proxy'),
+    re_path(r'^api/(?P<path>carts(?:/.*)?)$', views.api_proxy, name='carts_proxy'),
+    re_path(r'^api/(?P<path>staff(?:/.*)?)$', views.api_proxy, name='staff_proxy'),
+    re_path(r'^api/(?P<path>managers(?:/.*)?)$', views.api_proxy, name='managers_proxy'),
+    re_path(r'^api/(?P<path>catalog(?:/.*)?)$', views.api_proxy, name='catalog_proxy'),
+    re_path(r'^api/(?P<path>recommendations(?:/.*)?)$', views.api_proxy, name='recommendations_proxy'),
+    re_path(r'^api/(?P<path>orders(?:/.*)?)$', views.api_proxy, name='orders_proxy'),
+    re_path(r'^api/(?P<path>payments(?:/.*)?)$', views.api_proxy, name='payments_proxy'),
+    re_path(r'^api/(?P<path>shipments(?:/.*)?)$', views.api_proxy, name='shipments_proxy'),
+    re_path(r'^api/(?P<path>reviews(?:/.*)?)$', views.api_proxy, name='reviews_proxy'),
 ]

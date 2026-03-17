@@ -2,30 +2,20 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 
-// Custom metrics để tracking chi tiết trong Grafana
 const successfulOrders = new Counter('successful_orders');
 const failedOrders = new Counter('failed_orders');
 const twoPCLatency = new Trend('twopc_latency');
 
-/**
- * Load Test Configuration
- * Mục tiêu: Demo 2PC performance degradation khi load tăng dần
- * 
- * Stage 1: Light load - hệ thống healthy
- * Stage 2-3: Moderate load - bắt đầu thấy latency tăng
- * Stage 4: Heavy load - errors xuất hiện, RPS plateau
- * Stage 5: Extreme load - high error rate, RT rất cao
- */
 export const options = {
   stages: [
     { duration: '20s', target: 30 },   // Stage 1: 30 VUs
     { duration: '20s', target: 80 },   // Stage 2: 80 VUs  
     { duration: '20s', target: 150 },  // Stage 3: 150 VUs
-    { duration: '20s', target: 250 },  // Stage 4: 250 VUs (errors start)
+    { duration: '20s', target: 250 },  // Stage 4: 250 VUs 
     { duration: '10s', target: 0 },    // Ramp down
   ],
   thresholds: {
-    'http_req_duration': ['p(95)<30000'], // Cho phép chậm để test chạy hết
+    'http_req_duration': ['p(95)<30000'], 
     'http_req_failed': ['rate<0.95'],     // Cho phép 95% lỗi ở peak
   },
 };
