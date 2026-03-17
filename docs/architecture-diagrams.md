@@ -127,20 +127,20 @@ sequenceDiagram
     participant BookService as Book Service
     participant BookDB as book_db (MySQL)
 
-    Client->>+Gateway: POST /api/books/create<br/>Authorization: Bearer <staff_or_manager_token><br/>{isbn, title, author, price, stock_quantity}
+    Client->>Gateway: POST /api/books/create<br/>Authorization: Bearer <staff_or_manager_token><br/>{isbn, title, author, price, stock_quantity}
     Gateway->>Gateway: Validate JWT token
-    Gateway->>+BookService: POST /books/create/<br/>{book payload}
+    Gateway->>BookService: POST /books/create/<br/>{book payload}
 
     BookService->>BookService: Validate input<br/>(required fields, ISBN, price, stock)
 
     alt Valid request
-        BookService->>+BookDB: INSERT INTO books (...)
-        BookDB-->>-BookService: New book_id
-        BookService-->>-Gateway: 201 Created<br/>{id, isbn, title, ...}
-        Gateway-->>-Client: 201 Created<br/>{id, isbn, title, ...}
+        BookService->>BookDB: INSERT INTO books (...)
+        BookDB-->>BookService: New book_id
+        BookService-->>Gateway: 201 Created<br/>{id, isbn, title, ...}
+        Gateway-->>Client: 201 Created<br/>{id, isbn, title, ...}
     else Invalid payload / business rule failed
-        BookService-->>-Gateway: 400 Bad Request<br/>{error, details}
-        Gateway-->>-Client: 400 Bad Request<br/>{error, details}
+        BookService-->>Gateway: 400 Bad Request<br/>{error, details}
+        Gateway-->>Client: 400 Bad Request<br/>{error, details}
     end
 ```
 
