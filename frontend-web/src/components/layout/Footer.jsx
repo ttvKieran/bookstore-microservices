@@ -1,124 +1,59 @@
 import React from 'react';
-import { Box, Container, Typography, Link, Grid, Divider } from '@mui/material';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
-import FacebookIcon from '@mui/icons-material/Facebook';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import InstagramIcon from '@mui/icons-material/Instagram';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import { BookOpen, Briefcase, Globe, Image, Send } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <Box
-      component="footer"
-      sx={{
-        bgcolor: 'grey.900',
-        color: 'white',
-        py: 6,
-        mt: 'auto',
-      }}
-    >
-      <Container maxWidth="lg">
-        <Grid container spacing={4}>
-          {/* Company Info */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <MenuBookIcon sx={{ mr: 1, fontSize: 32 }} />
-              <Typography variant="h6" fontWeight={700}>
-                BOOKSTORE
-              </Typography>
-            </Box>
-            <Typography variant="body2" color="grey.400">
-              Your trusted online bookstore for all kinds of books. From bestsellers
-              to hidden gems, we have it all.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-              <Link href="#" color="inherit">
-                <FacebookIcon />
-              </Link>
-              <Link href="#" color="inherit">
-                <TwitterIcon />
-              </Link>
-              <Link href="#" color="inherit">
-                <InstagramIcon />
-              </Link>
-              <Link href="#" color="inherit">
-                <LinkedInIcon />
-              </Link>
-            </Box>
-          </Grid>
+    <footer className="mt-auto border-t border-slate-200 bg-slate-950 text-slate-100">
+      <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <BookOpen className="h-7 w-7 text-blue-400" />
+            <p className="text-lg font-bold">BOOKSTORE</p>
+          </div>
+          <p className="text-sm text-slate-300">
+            Your trusted online bookstore for bestsellers and hidden gems.
+          </p>
+          <div className="mt-4 flex items-center gap-2 text-slate-300">
+            <a href="#" className="rounded-md p-2 hover:bg-slate-800"><Globe className="h-4 w-4" /></a>
+            <a href="#" className="rounded-md p-2 hover:bg-slate-800"><Send className="h-4 w-4" /></a>
+            <a href="#" className="rounded-md p-2 hover:bg-slate-800"><Image className="h-4 w-4" /></a>
+            <a href="#" className="rounded-md p-2 hover:bg-slate-800"><Briefcase className="h-4 w-4" /></a>
+          </div>
+        </div>
 
-          {/* Quick Links */}
-          <Grid item xs={12} sm={6} md={2}>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-              Quick Links
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Link href="/" color="grey.400" underline="hover">
-                Home
-              </Link>
-              <Link href="/books" color="grey.400" underline="hover">
-                All Books
-              </Link>
-              <Link href="/categories" color="grey.400" underline="hover">
-                Categories
-              </Link>
-              <Link href="/trending" color="grey.400" underline="hover">
-                Trending
-              </Link>
-            </Box>
-          </Grid>
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-300">Quick Links</h3>
+          <div className="space-y-2 text-sm text-slate-300">
+            <a href="/" className="block hover:text-white">Home</a>
+            <a href="/catalog" className="block hover:text-white">Catalog</a>
+            <a href="/recommendations" className="block hover:text-white">Recommendations</a>
+          </div>
+        </div>
 
-          {/* Customer Service */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-              Customer Service
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Link href="/orders" color="grey.400" underline="hover">
-                My Orders
-              </Link>
-              <Link href="/cart" color="grey.400" underline="hover">
-                Shopping Cart
-              </Link>
-              <Link href="#" color="grey.400" underline="hover">
-                Shipping Info
-              </Link>
-              <Link href="#" color="grey.400" underline="hover">
-                Return Policy
-              </Link>
-            </Box>
-          </Grid>
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-300">Customer Service</h3>
+          <div className="space-y-2 text-sm text-slate-300">
+            <a href="/orders" className="block hover:text-white">My Orders</a>
+            <a href="/cart" className="block hover:text-white">Shopping Cart</a>
+            <p>Shipping Info</p>
+            <p>Return Policy</p>
+          </div>
+        </div>
 
-          {/* Contact */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-              Contact Us
-            </Typography>
-            <Typography variant="body2" color="grey.400" mb={1}>
-              Email: support@bookstore.com
-            </Typography>
-            <Typography variant="body2" color="grey.400" mb={1}>
-              Phone: +84 123 456 789
-            </Typography>
-            <Typography variant="body2" color="grey.400">
-              Address: District 1, Ho Chi Minh City
-            </Typography>
-          </Grid>
-        </Grid>
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-300">Contact</h3>
+          <div className="space-y-2 text-sm text-slate-300">
+            <p>support@bookstore.com</p>
+            <p>+84 123 456 789</p>
+            <p>District 1, Ho Chi Minh City</p>
+          </div>
+        </div>
+      </div>
 
-        <Divider sx={{ my: 3, bgcolor: 'grey.700' }} />
-
-        {/* Copyright */}
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="body2" color="grey.500">
-            © {new Date().getFullYear()} BookStore Microservices. All rights reserved.
-          </Typography>
-          <Typography variant="body2" color="grey.600" mt={0.5}>
-            Built with React + Material-UI | Powered by Polyglot Microservices Architecture
-          </Typography>
-        </Box>
-      </Container>
-    </Box>
+      <div className="border-t border-slate-800 py-4 text-center text-xs text-slate-400">
+        © {new Date().getFullYear()} BookStore Microservices. Powered by React + Tailwind.
+      </div>
+    </footer>
   );
 };
 

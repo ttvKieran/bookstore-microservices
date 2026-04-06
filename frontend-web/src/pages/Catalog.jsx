@@ -1,28 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardMedia,
-  CardContent,
-  CardActions,
-  Button,
-  Box,
-  Chip,
-  Skeleton,
-  Alert,
-  Tabs,
-  Tab,
-  Paper,
-} from '@mui/material';
-import {
-  ShoppingCart as ShoppingCartIcon,
-  Category as CategoryIcon,
-  LocalOffer as LocalOfferIcon,
-} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { catalogService, bookService } from '../services/api';
+import { Layers, Loader2, ShoppingCart, Tag } from 'lucide-react';
+import { catalogService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -42,270 +21,106 @@ const Catalog = () => {
   const [categoryInfo, setCategoryInfo] = useState(null);
 
   useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await catalogService.getCategories();
+        const categoriesData = response.data || [];
+        setCategories(categoriesData);
+        if (categoriesData.length > 0) setSelectedCategory(categoriesData[0].id);
+      } catch (err) {
+        setError('Failed to load categories. Please try again later.');
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
     fetchCategories();
   }, []);
 
   useEffect(() => {
-    if (selectedCategory) {
-      fetchBooksInCategory(selectedCategory);
-    }
+    if (!selectedCategory) return;
+
+    const fetchBooksInCategory = async () => {
+      try {
+        setLoadingBooks(true);
+        setError('');
+        const data = await catalogService.getBooksInCategory(selectedCategory, 1, 20);
+        setBooks(data.books || []);
+        setCategoryInfo({ name: data.category_name, total: data.total });
+      } catch (err) {
+        setError('Failed to load books. Please try again later.');
+        setBooks([]);
+      } finally {
+        setLoadingBooks(false);
+      }
+    };
+
+    fetchBooksInCategory();
   }, [selectedCategory]);
 
-  const fetchCategories = async () => {
-    try {
-      setLoadingCategories(true);
-      const response = await catalogService.getCategories();
-      const categoriesData = response.data || [];
-      setCategories(categoriesData);
-      
-      // Auto-select first category
-      if (categoriesData.length > 0) {
-        setSelectedCategory(categoriesData[0].id);
-      }
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setError('Failed to load categories. Please try again later.');
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
-
-  const fetchBooksInCategory = async (categoryId) => {
-    try {
-      setLoadingBooks(true);
-      setError('');
-      const data = await catalogService.getBooksInCategory(categoryId, 1, 20);
-      setBooks(data.books || []);
-      setCategoryInfo({
-        name: data.category_name,
-        total: data.total,
-      });
-    } catch (err) {
-      console.error('Error fetching books in category:', err);
-      setError('Failed to load books. Please try again later.');
-      setBooks([]);
-    } finally {
-      setLoadingBooks(false);
-    }
-  };
-
-  const handleCategoryChange = (event, newValue) => {
-    setSelectedCategory(newValue);
-  };
-
   const handleAddToCart = async (bookId, bookTitle) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-
+    if (!isAuthenticated) return navigate('/login');
     const result = await addToCart(bookId, 1);
-    if (result.success) {
-      showSuccess(`"${bookTitle}" added to cart!`);
-    } else {
-      showError(result.error || 'Failed to add to cart');
-    }
-  };
-
-  const handleViewDetails = (bookId) => {
-    navigate(`/books/${bookId}`);
+    if (result.success) showSuccess(`"${bookTitle}" added to cart!`);
+    else showError(result.error || 'Failed to add to cart');
   };
 
   return (
-    <Container maxWidth="xl">
-      {/* Page Header */}
-      <Box sx={{ py: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <CategoryIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-          <Typography variant="h3" fontWeight={700}>
-            Browse by Category
-          </Typography>
-        </Box>
-        <Typography variant="h6" color="text.secondary">
-          Explore our collection organized by categories
-        </Typography>
-      </Box>
+    <div>
+      <div className="mb-4">
+        <div className="mb-1 flex items-center gap-2"><Layers className="h-8 w-8 text-blue-600" /><h1 className="text-3xl font-bold text-slate-900">Browse by Category</h1></div>
+        <p className="text-slate-500">Explore our collection organized by categories</p>
+      </div>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      {error && <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
-      {/* Categories Tabs */}
-      <Paper elevation={0} sx={{ mb: 4, bgcolor: 'background.paper' }}>
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         {loadingCategories ? (
-          <Box sx={{ p: 2 }}>
-            <Skeleton variant="rectangular" height={48} />
-          </Box>
+          <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>
         ) : (
-          <Tabs
-            value={selectedCategory}
-            onChange={handleCategoryChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              borderBottom: 1,
-              borderColor: 'divider',
-              '& .MuiTab-root': {
-                minHeight: 64,
-                textTransform: 'none',
-                fontSize: '1rem',
-                fontWeight: 600,
-              },
-            }}
-          >
+          <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
-              <Tab
-                key={category.id}
-                value={category.id}
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocalOfferIcon fontSize="small" />
-                    <span>{category.name}</span>
-                    {category.book_count && (
-                      <Chip
-                        label={category.book_count}
-                        size="small"
-                        color="primary"
-                        sx={{ ml: 1 }}
-                      />
-                    )}
-                  </Box>
-                }
-              />
+              <button key={category.id} onClick={() => setSelectedCategory(category.id)} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm font-medium ${selectedCategory === category.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                <Tag className="h-3 w-3" /> {category.name}
+                {category.book_count && <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${selectedCategory === category.id ? 'bg-white/20' : 'bg-blue-100 text-blue-700'}`}>{category.book_count}</span>}
+              </button>
             ))}
-          </Tabs>
+          </div>
         )}
-      </Paper>
+      </div>
 
-      {/* Category Info */}
       {categoryInfo && !loadingBooks && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            {categoryInfo.name}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {categoryInfo.total} book{categoryInfo.total !== 1 ? 's' : ''} available
-          </Typography>
-        </Box>
+        <div className="mb-3">
+          <h2 className="text-2xl font-semibold text-slate-900">{categoryInfo.name}</h2>
+          <p className="text-sm text-slate-500">{categoryInfo.total} book{categoryInfo.total !== 1 ? 's' : ''} available</p>
+        </div>
       )}
 
-      {/* Books Grid */}
-      <Grid container spacing={3} justifyContent="left">
-        {loadingBooks
-          ? // Skeleton loading
-            Array.from(new Array(8)).map((_, index) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={index} sx={{ display: 'flex' }}>
-                <Card sx={{ width: '100%', maxWidth: 320 }}>
-                  <Skeleton variant="rectangular" height={280} />
-                  <CardContent>
-                    <Skeleton variant="text" height={32} />
-                    <Skeleton variant="text" />
-                    <Skeleton variant="text" width="60%" />
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))
-          : books.length === 0
-          ? // Empty state
-            <Grid item xs={12}>
-              <Box
-                sx={{
-                  textAlign: 'center',
-                  py: 8,
-                  px: 2,
-                }}
-              >
-                <CategoryIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h5" color="text.secondary" gutterBottom>
-                  No books found in this category
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Try selecting a different category
-                </Typography>
-              </Box>
-            </Grid>
-          : // Actual book cards
-            books.map((book) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={book.book_id} sx={{ display: 'flex' }}>
-                <Card
-                  sx={{
-                    width: '100%',
-                    maxWidth: 320,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 6,
-                    },
-                  }}
-                >
-                  <CardMedia
-                    component="img"
-                    height="280"
-                    image={
-                      book.cover_image_url ||
-                      `https://via.placeholder.com/200x280/1976d2/ffffff?text=${encodeURIComponent(
-                        book.title
-                      )}`
-                    }
-                    alt={book.title}
-                    sx={{ 
-                      objectFit: 'cover', 
-                      bgcolor: 'grey.200', 
-                      cursor: 'pointer',
-                      width: '100%',
-                      maxWidth: '100%',
-                    }}
-                    onClick={() => handleViewDetails(book.book_id)}
-                  />
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography
-                      variant="h6"
-                      component="h3"
-                      gutterBottom
-                      sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        minHeight: '3.6em',
-                        cursor: 'pointer',
-                        '&:hover': {
-                          color: 'primary.main',
-                        },
-                      }}
-                      onClick={() => handleViewDetails(book.book_id)}
-                    >
-                      {book.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      {book.author}
-                    </Typography>
-                    <Typography variant="h6" color="primary" fontWeight={700}>
-                      ${Number(book.price).toFixed(2)}
-                    </Typography>
-                  </CardContent>
-                  <CardActions sx={{ p: 2, pt: 0 }}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      startIcon={<ShoppingCartIcon />}
-                      onClick={() => handleAddToCart(book.book_id, book.title)}
-                    >
-                      Add to Cart
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
-      </Grid>
-    </Container>
+      {loadingBooks ? (
+        <div className="flex min-h-[30vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>
+      ) : books.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <Layers className="mx-auto mb-2 h-16 w-16 text-slate-300" />
+          <p className="text-lg font-semibold text-slate-700">No books found in this category</p>
+          <p className="text-sm text-slate-500">Try selecting a different category</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {books.map((book) => (
+            <div key={book.book_id} className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+              <img src={book.cover_image_url || `https://via.placeholder.com/200x280/1976d2/ffffff?text=${encodeURIComponent(book.title)}`} alt={book.title} className="h-72 w-full cursor-pointer rounded-t-xl object-cover" onClick={() => navigate(`/books/${book.book_id}`)} />
+              <div className="flex flex-1 flex-col p-4">
+                <button onClick={() => navigate(`/books/${book.book_id}`)} className="line-clamp-2 text-left text-lg font-semibold text-slate-900 hover:text-blue-600">{book.title}</button>
+                <p className="text-sm text-slate-500">{book.author}</p>
+                <p className="mt-1 text-lg font-bold text-blue-600">${Number(book.price).toFixed(2)}</p>
+                <button onClick={() => handleAddToCart(book.book_id, book.title)} className="mt-3 inline-flex items-center justify-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500"><ShoppingCart className="h-4 w-4" />Add to Cart</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

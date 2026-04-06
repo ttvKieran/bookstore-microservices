@@ -1,29 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardMedia,
-  CardContent,
-  CardActions,
-  Button,
-  Box,
-  Chip,
-  Skeleton,
-  Alert,
-  Paper,
-  Divider,
-  LinearProgress,
-} from '@mui/material';
-import {
-  ShoppingCart as ShoppingCartIcon,
-  AutoAwesome as AutoAwesomeIcon,
-  TrendingUp as TrendingUpIcon,
-  Star as StarIcon,
-  Visibility as VisibilityIcon,
-} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { Eye, Loader2, ShoppingCart, Sparkles, Star, TrendingUp } from 'lucide-react';
 import { recommendationService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -42,354 +19,114 @@ const Recommendations = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchTrendingBooks = async () => {
+      try {
+        setLoadingTrending(true);
+        setError('');
+        const data = await recommendationService.getTrendingBooks(12, 'week');
+        setTrendingBooks(data.trending_books || []);
+      } catch (err) {
+        setError('Failed to load trending books. Please try again later.');
+      } finally {
+        setLoadingTrending(false);
+      }
+    };
+
     fetchTrendingBooks();
-    if (isAuthenticated && user?.id) {
-      fetchPersonalizedRecommendations();
-    }
+  }, []);
+
+  useEffect(() => {
+    const fetchPersonalizedRecommendations = async () => {
+      if (!isAuthenticated || !user?.id) return;
+      try {
+        setLoadingPersonalized(true);
+        const data = await recommendationService.getRecommendations(user.id, 8);
+        setPersonalizedRecommendations(data.recommendations || []);
+      } catch {
+        setPersonalizedRecommendations([]);
+      } finally {
+        setLoadingPersonalized(false);
+      }
+    };
+
+    fetchPersonalizedRecommendations();
   }, [isAuthenticated, user]);
 
-  const fetchPersonalizedRecommendations = async () => {
-    try {
-      setLoadingPersonalized(true);
-      const data = await recommendationService.getRecommendations(user.id, 8);
-      setPersonalizedRecommendations(data.recommendations || []);
-    } catch (err) {
-      console.error('Error fetching personalized recommendations:', err);
-      // Don't show error for personalized - just skip this section
-      setPersonalizedRecommendations([]);
-    } finally {
-      setLoadingPersonalized(false);
-    }
-  };
-
-  const fetchTrendingBooks = async () => {
-    try {
-      setLoadingTrending(true);
-      setError('');
-      const data = await recommendationService.getTrendingBooks(12, 'week');
-      setTrendingBooks(data.trending_books || []);
-    } catch (err) {
-      console.error('Error fetching trending books:', err);
-      setError('Failed to load trending books. Please try again later.');
-    } finally {
-      setLoadingTrending(false);
-    }
-  };
-
   const handleAddToCart = async (bookId, bookTitle) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-
+    if (!isAuthenticated) return navigate('/login');
     const result = await addToCart(bookId, 1);
-    if (result.success) {
-      showSuccess(`"${bookTitle}" added to cart!`);
-    } else {
-      showError(result.error || 'Failed to add to cart');
-    }
+    if (result.success) showSuccess(`"${bookTitle}" added to cart!`);
+    else showError(result.error || 'Failed to add to cart');
   };
 
   const handleViewDetails = (bookId) => {
-    // Track interaction when viewing details
     if (isAuthenticated && user?.id) {
-      recommendationService
-        .trackInteraction(user.id, bookId, 'view')
-        .catch((err) => console.error('Error tracking interaction:', err));
+      recommendationService.trackInteraction(user.id, bookId, 'view').catch(() => {});
     }
     navigate(`/books/${bookId}`);
   };
 
   const renderBookCard = (book, showScore = false, showStats = false) => {
     const bookId = book.book_id || book.id;
-    const bookTitle = book.title;
-    const bookAuthor = book.author;
-    const bookPrice = book.price;
-    const coverImage = book.cover_image_url;
-
     return (
-      <Grid item xs={12} sm={6} md={4} lg={3} key={bookId}>
-        <Card
-          sx={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 6,
-            },
-          }}
-        >
-          <CardMedia
-            component="img"
-            height="280"
-            image={
-              coverImage ||
-              `https://via.placeholder.com/200x280/1976d2/ffffff?text=${encodeURIComponent(
-                bookTitle
-              )}`
-            }
-            alt={bookTitle}
-            sx={{ objectFit: 'cover', bgcolor: 'grey.200', cursor: 'pointer' }}
-            onClick={() => handleViewDetails(bookId)}
-          />
-          <CardContent sx={{ flexGrow: 1 }}>
-            {/* Score Badge */}
-            {showScore && book.score && (
-              <Box sx={{ mb: 1 }}>
-                <Chip
-                  icon={<StarIcon />}
-                  label={`${Math.round(book.score * 100)}% Match`}
-                  color="primary"
-                  size="small"
-                />
-              </Box>
-            )}
-
-            {/* Trending Stats */}
-            {showStats && (book.views || book.purchases) && (
-              <Box sx={{ mb: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {book.views && (
-                  <Chip
-                    icon={<VisibilityIcon />}
-                    label={`${book.views} views`}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
-                {book.purchases && (
-                  <Chip
-                    icon={<ShoppingCartIcon />}
-                    label={`${book.purchases} sold`}
-                    size="small"
-                    variant="outlined"
-                    color="success"
-                  />
-                )}
-              </Box>
-            )}
-
-            <Typography
-              variant="h6"
-              component="h3"
-              gutterBottom
-              sx={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                minHeight: '3.6em',
-                cursor: 'pointer',
-                '&:hover': {
-                  color: 'primary.main',
-                },
-              }}
-              onClick={() => handleViewDetails(bookId)}
-            >
-              {bookTitle}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              {bookAuthor}
-            </Typography>
-
-            {/* Recommendation Reason */}
-            {book.reason && (
-              <Typography
-                variant="caption"
-                color="primary"
-                sx={{
-                  display: 'block',
-                  fontStyle: 'italic',
-                  mb: 1,
-                }}
-              >
-                {book.reason}
-              </Typography>
-            )}
-
-            <Typography variant="h6" color="primary" fontWeight={700}>
-              ${Number(bookPrice).toFixed(2)}
-            </Typography>
-          </CardContent>
-          <CardActions sx={{ p: 2, pt: 0 }}>
-            <Button
-              fullWidth
-              variant="contained"
-              startIcon={<ShoppingCartIcon />}
-              onClick={() => handleAddToCart(bookId, bookTitle)}
-            >
-              Add to Cart
-            </Button>
-          </CardActions>
-        </Card>
-      </Grid>
+      <div key={bookId} className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+        <img src={book.cover_image_url || `https://via.placeholder.com/200x280/1976d2/ffffff?text=${encodeURIComponent(book.title)}`} alt={book.title} className="h-72 w-full cursor-pointer rounded-t-xl object-cover" onClick={() => handleViewDetails(bookId)} />
+        <div className="flex flex-1 flex-col p-4">
+          {showScore && book.score && <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700"><Star className="h-3 w-3 fill-blue-500" />{Math.round(book.score * 100)}% Match</span>}
+          {showStats && (book.views || book.purchases) && (
+            <div className="mb-1 flex flex-wrap gap-1">
+              {book.views && <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-2 py-1 text-xs text-slate-600"><Eye className="h-3 w-3" />{book.views} views</span>}
+              {book.purchases && <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 px-2 py-1 text-xs text-emerald-700"><ShoppingCart className="h-3 w-3" />{book.purchases} sold</span>}
+            </div>
+          )}
+          <button onClick={() => handleViewDetails(bookId)} className="line-clamp-2 text-left text-lg font-semibold text-slate-900 hover:text-blue-600">{book.title}</button>
+          <p className="text-sm text-slate-500">{book.author}</p>
+          {book.reason && <p className="mt-1 text-xs italic text-blue-600">{book.reason}</p>}
+          <p className="mt-1 text-lg font-bold text-blue-600">${Number(book.price).toFixed(2)}</p>
+          <button onClick={() => handleAddToCart(bookId, book.title)} className="mt-3 inline-flex items-center justify-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500"><ShoppingCart className="h-4 w-4" />Add to Cart</button>
+        </div>
+      </div>
     );
   };
 
   return (
-    <Container maxWidth="xl">
-      {/* Page Header */}
-      <Box sx={{ py: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <AutoAwesomeIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-          <Typography variant="h3" fontWeight={700}>
-            Recommendations for You
-          </Typography>
-        </Box>
-        <Typography variant="h6" color="text.secondary">
-          Discover books tailored to your taste, powered by AI
-        </Typography>
-      </Box>
+    <div className="space-y-5">
+      <div>
+        <div className="mb-1 flex items-center gap-2"><Sparkles className="h-8 w-8 text-blue-600" /><h1 className="text-3xl font-bold text-slate-900">Recommendations for You</h1></div>
+        <p className="text-slate-500">Discover books tailored to your taste, powered by AI</p>
+      </div>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
+      {error && <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
+
+      {isAuthenticated ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-1 text-2xl font-semibold text-slate-900">Personalized Picks</h2>
+          <p className="mb-3 text-sm text-slate-500">Based on your reading history and preferences</p>
+          {loadingPersonalized ? <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {personalizedRecommendations.length === 0 ? <div className="col-span-full rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">No personalized recommendations yet. Browse and purchase books to get personalized suggestions!</div> : personalizedRecommendations.map((book) => renderBookCard(book, true, false))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl bg-blue-600 p-6 text-center text-white">
+          <Sparkles className="mx-auto mb-2 h-12 w-12" />
+          <h2 className="text-2xl font-semibold">Get Personalized Recommendations</h2>
+          <p className="mt-1 text-blue-100">Sign in to receive AI-powered book suggestions based on your preferences</p>
+          <button onClick={() => navigate('/login')} className="mt-3 rounded-md bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Sign In Now</button>
+        </div>
       )}
 
-      {/* Personalized Recommendations Section */}
-      {isAuthenticated && (
-        <>
-          <Paper elevation={0} sx={{ p: 3, mb: 4, bgcolor: 'background.paper' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <AutoAwesomeIcon sx={{ color: 'primary.main', mr: 1 }} />
-              <Typography variant="h4" fontWeight={600}>
-                Personalized Picks
-              </Typography>
-            </Box>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Based on your reading history and preferences
-            </Typography>
-
-            {loadingPersonalized ? (
-              <Box sx={{ mb: 2 }}>
-                <LinearProgress />
-              </Box>
-            ) : null}
-
-            <Grid container spacing={3}>
-              {loadingPersonalized
-                ? Array.from(new Array(4)).map((_, index) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                      <Card>
-                        <Skeleton variant="rectangular" height={280} />
-                        <CardContent>
-                          <Skeleton variant="text" height={32} />
-                          <Skeleton variant="text" />
-                          <Skeleton variant="text" width="60%" />
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))
-                : personalizedRecommendations.length === 0
-                ? <Grid item xs={12}>
-                    <Alert severity="info">
-                      No personalized recommendations yet. Browse and purchase books to get personalized suggestions!
-                    </Alert>
-                  </Grid>
-                : personalizedRecommendations.map((book) =>
-                    renderBookCard(book, true, false)
-                  )}
-            </Grid>
-          </Paper>
-
-          <Divider sx={{ my: 4 }} />
-        </>
-      )}
-
-      {/* Login Prompt for Anonymous Users */}
-      {!isAuthenticated && (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 4,
-            mb: 4,
-            bgcolor: 'primary.light',
-            textAlign: 'center',
-            color: 'white',
-          }}
-        >
-          <AutoAwesomeIcon sx={{ fontSize: 60, mb: 2 }} />
-          <Typography variant="h5" fontWeight={600} gutterBottom>
-            Get Personalized Recommendations
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
-            Sign in to receive AI-powered book suggestions based on your preferences
-          </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => navigate('/login')}
-            sx={{
-              bgcolor: 'white',
-              color: 'primary.main',
-              '&:hover': {
-                bgcolor: 'grey.100',
-              },
-            }}
-          >
-            Sign In Now
-          </Button>
-        </Paper>
-      )}
-
-      {/* Trending Books Section */}
-      <Paper elevation={0} sx={{ p: 3, mb: 4, bgcolor: 'background.paper' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <TrendingUpIcon sx={{ color: 'secondary.main', mr: 1 }} />
-          <Typography variant="h4" fontWeight={600}>
-            Trending This Week
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Most popular books among our community
-        </Typography>
-
-        {loadingTrending ? (
-          <Box sx={{ mb: 2 }}>
-            <LinearProgress color="secondary" />
-          </Box>
-        ) : null}
-
-        <Grid container spacing={3}>
-          {loadingTrending
-            ? Array.from(new Array(8)).map((_, index) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                  <Card>
-                    <Skeleton variant="rectangular" height={280} />
-                    <CardContent>
-                      <Skeleton variant="text" height={32} />
-                      <Skeleton variant="text" />
-                      <Skeleton variant="text" width="60%" />
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))
-            : trendingBooks.length === 0
-            ? <Grid item xs={12}>
-                <Box
-                  sx={{
-                    textAlign: 'center',
-                    py: 6,
-                    px: 2,
-                  }}
-                >
-                  <TrendingUpIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-                  <Typography variant="h5" color="text.secondary" gutterBottom>
-                    No trending data available
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    Check back later for trending books
-                  </Typography>
-                </Box>
-              </Grid>
-            : trendingBooks.map((book) => renderBookCard(book, false, true))}
-        </Grid>
-      </Paper>
-    </Container>
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-1 flex items-center gap-2"><TrendingUp className="h-6 w-6 text-rose-600" /><h2 className="text-2xl font-semibold text-slate-900">Trending This Week</h2></div>
+        <p className="mb-3 text-sm text-slate-500">Most popular books among our community</p>
+        {loadingTrending ? <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {trendingBooks.length === 0 ? <div className="col-span-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">No trending data available. Check back later for trending books.</div> : trendingBooks.map((book) => renderBookCard(book, false, true))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
